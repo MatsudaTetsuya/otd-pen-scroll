@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Numerics;
 using OpenTabletDriver.Plugin;
 using OpenTabletDriver.Plugin.Attributes;
@@ -9,7 +10,8 @@ using PenScroll.Interop;
 namespace PenScroll
 {
     /// <summary>
-    /// Scrolls while a pen button is held, reproducing the Wacom driver's scroll modifier.
+    /// Scrolls while a pen button is held: the press marks an anchor, and how far the pen is held
+    /// from it sets the scroll speed.
     /// <para/>
     /// A filter rather than a binding: a binding only sees press and release, never the movement in
     /// between.
@@ -26,6 +28,12 @@ namespace PenScroll
     {
         private const string LogGroup = "Pen Scroll";
 
+        /// <summary>Displacement at which <see cref="Speed"/> is quoted.</summary>
+        private const float SpeedReferencePixels = 100f;
+
+        /// <summary>A stalled pipeline must not discharge as one long scroll.</summary>
+        private const float MaxStepSeconds = 0.05f;
+
         /// <summary>Post-transform, so reports arrive in screen pixels rather than tablet units.</summary>
         public PipelinePosition Position => PipelinePosition.PostTransform;
 
@@ -38,16 +46,24 @@ namespace PenScroll
                  "will fire alongside the scrolling.")]
         public int ModifierButton { get; set; } = 1;
 
-        [Property("Pixels per Notch")]
-        [DefaultPropertyValue(20f)]
-        [ToolTip("How far the pen travels for one scroll notch. Smaller values scroll faster.")]
-        public float PixelsPerNotch { get; set; } = 20f;
+        [Property("Dead Zone")]
+        [Unit("px")]
+        [DefaultPropertyValue(12f)]
+        [ToolTip("How far the pen must be held from the anchor before scrolling starts.")]
+        public float DeadZone { get; set; } = 12f;
+
+        [Property("Speed")]
+        [Unit("notches/s")]
+        [DefaultPropertyValue(15f)]
+        [ToolTip("Scroll speed when the pen is held 100 px past the dead zone.\n\n" +
+                 "Twice that distance scrolls twice as fast.")]
+        public float Speed { get; set; } = 15f;
 
         [BooleanProperty("Invert Direction", "Scroll the content with the pen instead of against it.")]
         [DefaultPropertyValue(false)]
         public bool Invert { get; set; }
 
-        [BooleanProperty("Horizontal Scrolling", "Also scroll sideways from horizontal pen movement.")]
+        [BooleanProperty("Horizontal Scrolling", "Also scroll sideways from horizontal displacement.")]
         [DefaultPropertyValue(false)]
         public bool HorizontalScrolling { get; set; }
 
@@ -55,9 +71,10 @@ namespace PenScroll
         private bool _deviceUnavailable;
 
         private bool _scrolling;
-        private Vector2 _previous;
+        private Vector2 _anchor;
+        private long _lastTimestamp;
 
-        // Sub-unit remainders, so slow movement still scrolls instead of being rounded away.
+        // Sub-unit remainders, so a slow rate still scrolls instead of being rounded away.
         private float _pendingVertical;
         private float _pendingHorizontal;
 
@@ -95,12 +112,12 @@ namespace PenScroll
             if (device is null)
                 return;
 
-            var position = report.Position;
+            var now = Stopwatch.GetTimestamp();
 
             if (!_scrolling)
             {
-                // Nothing to measure this report against yet.
                 _scrolling = true;
+                _anchor = report.Position;
                 _pendingVertical = 0f;
                 _pendingHorizontal = 0f;
                 _residualVertical = 0;
@@ -108,10 +125,11 @@ namespace PenScroll
             }
             else
             {
-                Scroll(device, position - _previous);
+                var seconds = (float)(now - _lastTimestamp) / Stopwatch.Frequency;
+                Scroll(device, report.Position - _anchor, Math.Min(seconds, MaxStepSeconds));
             }
 
-            _previous = position;
+            _lastTimestamp = now;
         }
 
         private bool IsModifierHeld(bool[]? penButtons)
@@ -123,16 +141,12 @@ namespace PenScroll
                 && penButtons[index];
         }
 
-        private void Scroll(UinputScrollDevice device, Vector2 delta)
+        private void Scroll(UinputScrollDevice device, Vector2 displacement, float seconds)
         {
-            // A zero or negative setting would turn one report into an unbounded jump.
-            var pixelsPerNotch = Math.Max(PixelsPerNotch, 1f);
-            var scale = Native.HiResUnitsPerDetent / pixelsPerNotch * (Invert ? -1f : 1f);
-
             // evdev counts positive as up and right, so the downward pen axis is negated.
-            var vertical = TakeWhole(ref _pendingVertical, -delta.Y * scale);
+            var vertical = TakeWhole(ref _pendingVertical, Rate(-displacement.Y) * seconds);
             var horizontal = HorizontalScrolling
-                ? TakeWhole(ref _pendingHorizontal, delta.X * scale)
+                ? TakeWhole(ref _pendingHorizontal, Rate(displacement.X) * seconds)
                 : 0;
 
             if (vertical == 0 && horizontal == 0)
@@ -142,6 +156,23 @@ namespace PenScroll
             var horizontalDetents = TakeDetents(ref _residualHorizontal, horizontal);
 
             device.Scroll(vertical, verticalDetents, horizontal, horizontalDetents);
+        }
+
+        /// <summary>
+        /// Hi-res units per second for one axis. The dead zone is applied per axis rather than to
+        /// the distance, so drifting a little sideways during a vertical scroll does not start
+        /// scrolling sideways.
+        /// </summary>
+        private float Rate(float offset)
+        {
+            var past = Math.Abs(offset) - Math.Max(DeadZone, 0f);
+            if (past <= 0f)
+                return 0f;
+
+            var notchesPerSecond = past / SpeedReferencePixels * Math.Max(Speed, 0f);
+            var direction = offset < 0f ? -1f : 1f;
+
+            return direction * notchesPerSecond * Native.HiResUnitsPerDetent * (Invert ? -1f : 1f);
         }
 
         /// <summary>

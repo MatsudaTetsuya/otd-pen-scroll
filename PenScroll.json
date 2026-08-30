@@ -1,7 +1,7 @@
 {
   "Name": "Pen Scroll",
   "Owner": "Matsuda Tetsuya",
-  "Description": "Scroll by moving the pen while a pen button is held, reproducing the scroll modifier from the Wacom driver. Unlike the built-in Mouse Scroll binding, the amount scrolled follows how far the pen moves. Linux and Absolute Mode only.",
+  "Description": "Hold a pen button and move the pen away from where you pressed to scroll. The further out the pen is held, the faster it scrolls, and holding still keeps scrolling. Linux and Absolute Mode only.",
   "PluginVersion": "0.1.0.0",
   "SupportedDriverVersion": "0.6.7.0",
   "RepositoryUrl": "https://github.com/MatsudaTetsuya/otd-pen-scroll",
