@@ -1,0 +1,21 @@
+# .NET build output
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+*.user
+*.suo
+
+# Packaging output
+artifacts/
+publish/
+*.zip
+
+# Editors
+.vs/
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
