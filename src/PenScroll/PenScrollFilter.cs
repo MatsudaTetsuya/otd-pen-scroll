@@ -24,6 +24,8 @@ namespace PenScroll
     [SupportedPlatform(PluginPlatform.Linux)]
     public class PenScrollFilter : IPositionedPipelineElement<IDeviceReport>, IDisposable
     {
+        private const string LogGroup = "Pen Scroll";
+
         /// <summary>Post-transform, so reports arrive in screen pixels rather than tablet units.</summary>
         public PipelinePosition Position => PipelinePosition.PostTransform;
 
@@ -50,6 +52,7 @@ namespace PenScroll
         public bool HorizontalScrolling { get; set; }
 
         private UinputScrollDevice? _device;
+        private bool _deviceUnavailable;
 
         private bool _scrolling;
         private Vector2 _anchor;
@@ -65,8 +68,16 @@ namespace PenScroll
 
         public void Consume(IDeviceReport report)
         {
-            if (report is ITabletReport tabletReport)
-                Process(tabletReport);
+            try
+            {
+                if (report is ITabletReport tabletReport)
+                    Process(tabletReport);
+            }
+            catch (Exception ex)
+            {
+                Log.Exception(ex);
+                StopScrolling();
+            }
 
             // Never swallowed: dropping a report would hide the button release from the binding
             // handler and leave whatever that button is bound to held down.
@@ -81,6 +92,11 @@ namespace PenScroll
                 return;
             }
 
+            // Without a wheel to scroll, freezing the cursor would only look broken.
+            var device = EnsureDevice();
+            if (device is null)
+                return;
+
             var position = report.Position;
 
             if (!_scrolling)
@@ -94,7 +110,7 @@ namespace PenScroll
             }
             else
             {
-                Scroll(position - _previous);
+                Scroll(device, position - _previous);
             }
 
             _previous = position;
@@ -112,7 +128,7 @@ namespace PenScroll
                 && penButtons[index];
         }
 
-        private void Scroll(Vector2 delta)
+        private void Scroll(UinputScrollDevice device, Vector2 delta)
         {
             // A zero or negative setting would turn one report into an unbounded jump.
             var pixelsPerNotch = Math.Max(PixelsPerNotch, 1f);
@@ -130,7 +146,7 @@ namespace PenScroll
             var verticalDetents = TakeDetents(ref _residualVertical, vertical);
             var horizontalDetents = TakeDetents(ref _residualHorizontal, horizontal);
 
-            EnsureDevice().Scroll(vertical, verticalDetents, horizontal, horizontalDetents);
+            device.Scroll(vertical, verticalDetents, horizontal, horizontalDetents);
         }
 
         /// <summary>
@@ -159,10 +175,27 @@ namespace PenScroll
         }
 
         /// <summary>
-        /// Created on first use, not in the constructor: the GUI also instantiates plugins just to
+        /// Created on first press, not in the constructor: the GUI also instantiates plugins just to
         /// read their default values.
         /// </summary>
-        private UinputScrollDevice EnsureDevice() => _device ??= new UinputScrollDevice();
+        private UinputScrollDevice? EnsureDevice()
+        {
+            if (_device is not null || _deviceUnavailable)
+                return _device;
+
+            try
+            {
+                _device = new UinputScrollDevice();
+                Log.Debug(LogGroup, "Created the virtual scroll wheel.");
+            }
+            catch (Exception ex)
+            {
+                _deviceUnavailable = true;
+                Log.Write(LogGroup, $"Scrolling is disabled: {ex.Message}", LogLevel.Error, notify: true);
+            }
+
+            return _device;
+        }
 
         private void StopScrolling()
         {
