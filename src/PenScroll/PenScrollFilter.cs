@@ -41,17 +41,27 @@ namespace PenScroll
         [ToolTip("How far the pen travels for one scroll notch. Smaller values scroll faster.")]
         public float PixelsPerNotch { get; set; } = 20f;
 
+        [BooleanProperty("Invert Direction", "Scroll the content with the pen instead of against it.")]
+        [DefaultPropertyValue(false)]
+        public bool Invert { get; set; }
+
+        [BooleanProperty("Horizontal Scrolling", "Also scroll sideways from horizontal pen movement.")]
+        [DefaultPropertyValue(false)]
+        public bool HorizontalScrolling { get; set; }
+
         private UinputScrollDevice? _device;
 
         private bool _scrolling;
         private Vector2 _anchor;
         private Vector2 _previous;
 
-        // Sub-unit remainder, so slow movement still scrolls instead of being rounded away.
+        // Sub-unit remainders, so slow movement still scrolls instead of being rounded away.
         private float _pendingVertical;
+        private float _pendingHorizontal;
 
         // Hi-res units already emitted but not yet worth a legacy detent.
         private int _residualVertical;
+        private int _residualHorizontal;
 
         public void Consume(IDeviceReport report)
         {
@@ -78,7 +88,9 @@ namespace PenScroll
                 _scrolling = true;
                 _anchor = position;
                 _pendingVertical = 0f;
+                _pendingHorizontal = 0f;
                 _residualVertical = 0;
+                _residualHorizontal = 0;
             }
             else
             {
@@ -104,16 +116,21 @@ namespace PenScroll
         {
             // A zero or negative setting would turn one report into an unbounded jump.
             var pixelsPerNotch = Math.Max(PixelsPerNotch, 1f);
-            var scale = Native.HiResUnitsPerDetent / pixelsPerNotch;
+            var scale = Native.HiResUnitsPerDetent / pixelsPerNotch * (Invert ? -1f : 1f);
 
-            // evdev counts positive as up, so the downward pen axis is negated.
+            // evdev counts positive as up and right, so the downward pen axis is negated.
             var vertical = TakeWhole(ref _pendingVertical, -delta.Y * scale);
-            if (vertical == 0)
+            var horizontal = HorizontalScrolling
+                ? TakeWhole(ref _pendingHorizontal, delta.X * scale)
+                : 0;
+
+            if (vertical == 0 && horizontal == 0)
                 return;
 
             var verticalDetents = TakeDetents(ref _residualVertical, vertical);
+            var horizontalDetents = TakeDetents(ref _residualHorizontal, horizontal);
 
-            EnsureDevice().Scroll(vertical, verticalDetents, 0, 0);
+            EnsureDevice().Scroll(vertical, verticalDetents, horizontal, horizontalDetents);
         }
 
         /// <summary>
@@ -151,7 +168,9 @@ namespace PenScroll
         {
             _scrolling = false;
             _pendingVertical = 0f;
+            _pendingHorizontal = 0f;
             _residualVertical = 0;
+            _residualHorizontal = 0;
         }
 
         public void Dispose()
