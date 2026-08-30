@@ -55,7 +55,6 @@ namespace PenScroll
         private bool _deviceUnavailable;
 
         private bool _scrolling;
-        private Vector2 _anchor;
         private Vector2 _previous;
 
         // Sub-unit remainders, so slow movement still scrolls instead of being rounded away.
@@ -92,7 +91,6 @@ namespace PenScroll
                 return;
             }
 
-            // Without a wheel to scroll, freezing the cursor would only look broken.
             var device = EnsureDevice();
             if (device is null)
                 return;
@@ -101,8 +99,8 @@ namespace PenScroll
 
             if (!_scrolling)
             {
+                // Nothing to measure this report against yet.
                 _scrolling = true;
-                _anchor = position;
                 _pendingVertical = 0f;
                 _pendingHorizontal = 0f;
                 _residualVertical = 0;
@@ -114,9 +112,6 @@ namespace PenScroll
             }
 
             _previous = position;
-
-            // Pin the cursor by rewriting the position rather than by dropping the report.
-            report.Position = _anchor;
         }
 
         private bool IsModifierHeld(bool[]? penButtons)
