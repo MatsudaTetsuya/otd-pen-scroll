@@ -2,12 +2,12 @@
   "Name": "Pen Scroll",
   "Owner": "Matsuda Tetsuya",
   "Description": "Hold a pen button and move the pen away from where you pressed to scroll. The further out the pen is held, the faster it scrolls, and holding still keeps scrolling. Linux and Absolute Mode only.",
-  "PluginVersion": "0.1.0.0",
+  "PluginVersion": "0.2.0.0",
   "SupportedDriverVersion": "0.6.7.0",
   "RepositoryUrl": "https://github.com/MatsudaTetsuya/otd-pen-scroll",
-  "DownloadUrl": "https://github.com/MatsudaTetsuya/otd-pen-scroll/releases/download/v0.1.0/PenScroll.zip",
+  "DownloadUrl": "https://github.com/MatsudaTetsuya/otd-pen-scroll/releases/download/v0.2.0/PenScroll.zip",
   "CompressionFormat": "zip",
-  "SHA256": "e65caebd1564e26f7e6636e0b8302272c92dc93a677f46cd5fbffe31b253682e",
+  "SHA256": "",
   "WikiUrl": "https://github.com/MatsudaTetsuya/otd-pen-scroll#readme",
   "LicenseIdentifier": "GPL-3.0-only"
 }
