@@ -11,7 +11,8 @@ namespace PenScroll
 {
     /// <summary>
     /// Scrolls while a pen button is held: the press marks an anchor, and how far the pen is held
-    /// from it sets the scroll speed.
+    /// from it sets the scroll speed. The cursor stays on the anchor for the duration, so the scroll
+    /// keeps landing on whatever was under the pen when the button went down.
     /// <para/>
     /// A filter rather than a binding: a binding only sees press and release, never the movement in
     /// between.
@@ -130,6 +131,9 @@ namespace PenScroll
             }
 
             _lastTimestamp = now;
+
+            // Pin the cursor by rewriting the position.
+            report.Position = _anchor;
         }
 
         private bool IsModifierHeld(bool[]? penButtons)
