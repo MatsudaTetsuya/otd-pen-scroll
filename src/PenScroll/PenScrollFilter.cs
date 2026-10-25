@@ -25,7 +25,7 @@ namespace PenScroll
     /// </summary>
     [PluginName("Pen Scroll")]
     [SupportedPlatform(PluginPlatform.Linux)]
-    public class PenScrollFilter : IPositionedPipelineElement<IDeviceReport>, IDisposable
+    public class PenScrollFilter : IPositionedPipelineElement<IDeviceReport>
     {
         private const string LogGroup = "Pen Scroll";
 
@@ -67,6 +67,12 @@ namespace PenScroll
         [BooleanProperty("Horizontal Scrolling", "Also scroll sideways from horizontal displacement.")]
         [DefaultPropertyValue(false)]
         public bool HorizontalScrolling { get; set; }
+
+        // Not per filter: the driver disposes every filter on each Apply and tablet re-detection,
+        // which would unplug and replug the wheel each time. Never closed; the kernel removes the
+        // device when the daemon exits.
+        private static readonly object SharedDeviceGate = new();
+        private static UinputScrollDevice? _sharedDevice;
 
         private UinputScrollDevice? _device;
         private bool _deviceUnavailable;
@@ -213,15 +219,23 @@ namespace PenScroll
             if (_device is not null || _deviceUnavailable)
                 return _device;
 
-            try
+            lock (SharedDeviceGate)
             {
-                _device = new UinputScrollDevice();
-                Log.Debug(LogGroup, "Created the virtual scroll wheel.");
-            }
-            catch (Exception ex)
-            {
-                _deviceUnavailable = true;
-                Log.Write(LogGroup, $"Scrolling is disabled: {ex.Message}", LogLevel.Error, notify: true);
+                try
+                {
+                    if (_sharedDevice is null)
+                    {
+                        _sharedDevice = new UinputScrollDevice();
+                        Log.Debug(LogGroup, "Created the virtual scroll wheel.");
+                    }
+
+                    _device = _sharedDevice;
+                }
+                catch (Exception ex)
+                {
+                    _deviceUnavailable = true;
+                    Log.Write(LogGroup, $"Scrolling is disabled: {ex.Message}", LogLevel.Error, notify: true);
+                }
             }
 
             return _device;
@@ -234,13 +248,6 @@ namespace PenScroll
             _pendingHorizontal = 0f;
             _residualVertical = 0;
             _residualHorizontal = 0;
-        }
-
-        public void Dispose()
-        {
-            _device?.Dispose();
-            _device = null;
-            GC.SuppressFinalize(this);
         }
     }
 }
