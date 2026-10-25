@@ -13,12 +13,12 @@ namespace PenScroll.Interop
     /// constructed without a service provider, and the handler is registered only in the binding
     /// handler's.
     /// </summary>
-    internal sealed unsafe class UinputScrollDevice : IDisposable
+    internal sealed unsafe class UinputScrollDevice
     {
         private const string DevicePath = "/dev/uinput";
         private const string DeviceName = "OpenTabletDriver Pen Scroll";
 
-        private int _fd = -1;
+        private readonly int _fd;
 
         public UinputScrollDevice()
         {
@@ -62,7 +62,7 @@ namespace PenScroll.Interop
             }
             catch
             {
-                CloseHandle(destroy: false);
+                close(_fd);
                 throw;
             }
         }
@@ -74,8 +74,6 @@ namespace PenScroll.Interop
         public void Scroll(int verticalHiRes, int verticalDetents, int horizontalHiRes, int horizontalDetents)
         {
             if (verticalHiRes == 0 && verticalDetents == 0 && horizontalHiRes == 0 && horizontalDetents == 0)
-                return;
-            if (_fd < 0)
                 return;
 
             var events = stackalloc InputEvent[5];
@@ -107,26 +105,5 @@ namespace PenScroll.Interop
             var errno = Marshal.GetLastWin32Error();
             return new InvalidOperationException($"{what} (errno {errno}: {new Win32Exception(errno).Message})");
         }
-
-        private void CloseHandle(bool destroy)
-        {
-            if (_fd < 0)
-                return;
-
-            if (destroy)
-                ioctl(_fd, UI_DEV_DESTROY, 0);
-            close(_fd);
-            _fd = -1;
-        }
-
-        public void Dispose()
-        {
-            CloseHandle(destroy: true);
-            GC.SuppressFinalize(this);
-        }
-
-        // The driver rebuilds the pipeline on every settings change without disposing the old
-        // elements, so the finalizer is the only thing that reclaims the fd.
-        ~UinputScrollDevice() => CloseHandle(destroy: true);
     }
 }

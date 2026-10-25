@@ -45,7 +45,6 @@ namespace PenScroll.Interop
             (IocWrite << 30) | (size << 16) | (UinputIoctlBase << 8) | nr;
 
         public static readonly ulong UI_DEV_CREATE = Io(1);
-        public static readonly ulong UI_DEV_DESTROY = Io(2);
         public static readonly ulong UI_DEV_SETUP = Iow(3, (uint)sizeof(UinputSetup));
         public static readonly ulong UI_SET_EVBIT = Iow(100, sizeof(int));
         public static readonly ulong UI_SET_KEYBIT = Iow(101, sizeof(int));
