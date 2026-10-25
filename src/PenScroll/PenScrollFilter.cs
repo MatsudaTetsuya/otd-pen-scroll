@@ -96,6 +96,8 @@ namespace PenScroll
             {
                 if (report is ITabletReport tabletReport)
                     Process(tabletReport);
+                else if (report is OutOfRangeReport)
+                    StopScrolling(); // the binding handler takes this as every pen button released
             }
             catch (Exception ex)
             {
