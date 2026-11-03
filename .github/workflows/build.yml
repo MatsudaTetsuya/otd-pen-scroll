@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build:
@@ -48,12 +48,25 @@ jobs:
           name: PenScroll
           path: artifacts/
 
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: PenScroll
+          path: artifacts
+
       - name: Release
-        if: startsWith(github.ref, 'refs/tags/v')
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           hash="$(cut -d' ' -f1 < artifacts/PenScroll.zip.sha256)"
           gh release create "$GITHUB_REF_NAME" artifacts/PenScroll.zip \
+            --repo "$GITHUB_REPOSITORY" \
             --title "$GITHUB_REF_NAME" \
             --notes "SHA256 of \`PenScroll.zip\`: \`$hash\`"
