@@ -94,7 +94,7 @@ namespace PenScroll.Interop
                 throw Failure("writing wheel events failed");
         }
 
-        private void Set(ulong request, ushort bit)
+        private void Set(nuint request, ushort bit)
         {
             if (ioctl(_fd, request, bit) < 0)
                 throw Failure($"ioctl 0x{request:x} with 0x{bit:x} failed");

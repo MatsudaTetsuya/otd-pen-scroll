@@ -42,11 +42,11 @@ namespace PenScroll.Interop
         private static uint Iow(uint nr, uint size) =>
             (IocWrite << 30) | (size << 16) | (UinputIoctlBase << 8) | nr;
 
-        public static readonly ulong UI_DEV_CREATE = Io(1);
-        public static readonly ulong UI_DEV_SETUP = Iow(3, (uint)sizeof(UinputSetup));
-        public static readonly ulong UI_SET_EVBIT = Iow(100, sizeof(int));
-        public static readonly ulong UI_SET_KEYBIT = Iow(101, sizeof(int));
-        public static readonly ulong UI_SET_RELBIT = Iow(102, sizeof(int));
+        public static readonly nuint UI_DEV_CREATE = Io(1);
+        public static readonly nuint UI_DEV_SETUP = Iow(3, (uint)sizeof(UinputSetup));
+        public static readonly nuint UI_SET_EVBIT = Iow(100, sizeof(int));
+        public static readonly nuint UI_SET_KEYBIT = Iow(101, sizeof(int));
+        public static readonly nuint UI_SET_RELBIT = Iow(102, sizeof(int));
 
         private const string LibC = "libc.so.6";
 
@@ -57,10 +57,10 @@ namespace PenScroll.Interop
         public static extern int close(int fd);
 
         [DllImport(LibC, SetLastError = true, EntryPoint = "ioctl")]
-        public static extern int ioctl(int fd, ulong request, int arg);
+        public static extern int ioctl(int fd, nuint request, nuint arg);
 
         [DllImport(LibC, SetLastError = true, EntryPoint = "ioctl")]
-        public static extern int ioctl(int fd, ulong request, UinputSetup* arg);
+        public static extern int ioctl(int fd, nuint request, UinputSetup* arg);
 
         [DllImport(LibC, SetLastError = true)]
         public static extern nint write(int fd, void* buf, nuint count);
