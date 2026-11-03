@@ -1,5 +1,3 @@
-using System;
-using System.Reflection;
 using System.Runtime.InteropServices;
 
 namespace PenScroll.Interop
@@ -50,37 +48,7 @@ namespace PenScroll.Interop
         public static readonly ulong UI_SET_KEYBIT = Iow(101, sizeof(int));
         public static readonly ulong UI_SET_RELBIT = Iow(102, sizeof(int));
 
-        private const string LibC = "libc";
-
-        /// <summary>
-        /// The runtime only probes libc, libc.so and liblibc.so. On Fedora libc.so is a
-        /// glibc-devel linker script and is not dlopen-able, so try the real sonames.
-        /// </summary>
-        private static readonly string[] LibCCandidates =
-        {
-            "libc.so.6",             // glibc
-            "libc.musl-x86_64.so.1", // musl
-            "libc.so"
-        };
-
-        static Native()
-        {
-            NativeLibrary.SetDllImportResolver(typeof(Native).Assembly, ResolveLibC);
-        }
-
-        private static IntPtr ResolveLibC(string libraryName, Assembly assembly, DllImportSearchPath? searchPath)
-        {
-            if (libraryName != LibC)
-                return IntPtr.Zero;
-
-            foreach (var candidate in LibCCandidates)
-            {
-                if (NativeLibrary.TryLoad(candidate, out var handle))
-                    return handle;
-            }
-
-            return IntPtr.Zero;
-        }
+        private const string LibC = "libc.so.6";
 
         [DllImport(LibC, SetLastError = true)]
         public static extern int open([MarshalAs(UnmanagedType.LPUTF8Str)] string pathname, int flags);
