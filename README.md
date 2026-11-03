@@ -16,6 +16,9 @@ Absolute Mode is the mode in which the pen *is* the system pointer, so the wheel
 **Artist Mode does not work.** It presents the tablet as a stylus so applications receive pressure and tilt, and on Wayland a stylus is a tablet tool rather than a pointer, carrying no pointer focus of its own.
 Scrolling then does nothing unless a mouse is also connected, and with a mouse connected you get two cursors and the scrolling happens at the mouse cursor.
 
+**Relative Mode does not work either.** The plugin holds the cursor still by repeating the position it saw when the button went down, and measures scroll speed from that position.
+In Relative Mode the driver hands it the pen's movement since the last report instead of a screen position, so while the button is held the cursor keeps moving by whatever the pen moved at the press, and scrolling barely happens.
+
 ## Installing
 
 Copy `PenScroll.dll` into its own directory under the plugin folder and restart the daemon:
